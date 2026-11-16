@@ -2,9 +2,10 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from src.models import Dataset
 from src.services.business import metadata
+from src.services.versions import get_or_create_version
 from src.utils.serialization import checksum
 import math, time
-def create(db, data):
+def create(db, data, actor=''):
     name=data.name.strip()
     if len(name)<2: raise HTTPException(422, '批次名称去除空格后至少需要两个字符')
     if db.scalar(select(Dataset).where(Dataset.name==name)):
@@ -20,4 +21,6 @@ def create(db, data):
                 except (TypeError, ValueError, OverflowError): raise HTTPException(422, f'第 {index+1} 行 {c["label"]} 必须为有限数值')
     d=Dataset(name=name, source=data.source, records=data.records, checksum=checksum(data.records), created_at=time.time())
     db.add(d); db.flush()
+    v,_=get_or_create_version(db,d,actor,note='基线版本')
+    v.status='published'; v.published_at=time.time()
     return d

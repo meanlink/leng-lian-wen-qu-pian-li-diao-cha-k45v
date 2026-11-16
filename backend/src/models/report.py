@@ -18,3 +18,6 @@ class Delivery(Base):
     checksum: Mapped[str] = mapped_column(String(64))
     filename: Mapped[str] = mapped_column(String(160))
     destination: Mapped[str] = mapped_column(String(120))
+    version_id: Mapped[int | None] = mapped_column(nullable=True)
+    version_no: Mapped[int | None] = mapped_column(nullable=True)
+    superseded_by: Mapped[int | None] = mapped_column(nullable=True)

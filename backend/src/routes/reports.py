@@ -4,16 +4,25 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from src.config.database import get_db
 from src.config.settings import ARTIFACT_DIR
-from src.models import Report, Delivery
+from src.models import Job, Report, Delivery
 from src.schemas.report import ReportInput
 from src.middlewares.auth import current_user, admin_only
 from src.services import reports
+from src.services.versions import published_version
 from src.services.audit import record
 from src.utils.serialization import report_dict, delivery_dict
 router=APIRouter()
 @router.get('/reports')
 def listing(db=Depends(get_db),u=Depends(current_user)):
-    return [report_dict(r) for r in db.scalars(select(Report).order_by(Report.id.desc()))]
+    out=[]
+    for r in db.scalars(select(Report).order_by(Report.id.desc())):
+        row=report_dict(r)
+        j=db.get(Job,r.job_id)
+        v=published_version(db,j.dataset_id) if j else None
+        row['version_no']=j.version_no if j else None
+        row['stale']=bool(v and j and j.version_id!=v.id)
+        out.append(row)
+    return out
 @router.post('/reports',status_code=201)
 def create(data:ReportInput,db=Depends(get_db),u=Depends(admin_only)):
     r=reports.create(db,data); record(db,u.email,'report.schedule',{'id':r.id,'destination':r.destination}); db.commit()
